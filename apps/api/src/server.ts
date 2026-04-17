@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import authPlugin from "./plugins/auth.js";
 
 const fastify = Fastify({
   logger: {
@@ -9,7 +10,10 @@ const fastify = Fastify({
 
 await fastify.register(cors, {
   origin: process.env.CORS_ORIGIN ?? "http://localhost:3000",
+  credentials: true,
 });
+
+await fastify.register(authPlugin);
 
 fastify.get("/api/v1/health", async () => {
   return { status: "ok" };
