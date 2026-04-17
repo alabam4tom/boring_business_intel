@@ -1,17 +1,36 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalPassThroughEnv": [
+    "PORT",
+    "HOST",
+    "LOG_LEVEL",
+    "CORS_ORIGIN",
+    "DATABASE_URL",
+    "CODAT_API_KEY",
+    "CODAT_WEBHOOK_SECRET",
+    "LEMONSQUEEZY_API_KEY",
+    "LEMONSQUEEZY_WEBHOOK_SECRET",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "EMAIL_API_KEY",
+    "EMAIL_FROM"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
     "check-types": {
       "dependsOn": ["^check-types"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "dev": {
       "cache": false,
