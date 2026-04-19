@@ -8,7 +8,8 @@ type ServiceType = "full_service" | "creative_branding" | "digital_marketing" | 
 const AGENCY_SIZES: AgencySize[] = ["micro", "small", "mid", "large"];
 const REGIONS: Region[] = ["north_america", "europe", "apac", "latam", "middle_east_africa"];
 const SERVICE_TYPES: ServiceType[] = ["full_service", "creative_branding", "digital_marketing", "web_development", "pr_communications", "content_production"];
-const YEARS = [2022, 2023, 2024];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR - 2021 }, (_, i) => 2022 + i);
 
 // Base gross margin median by service type
 const GROSS_MARGIN_BASE: Record<ServiceType, number> = {
@@ -30,10 +31,10 @@ const NET_MARGIN_BASE: Record<AgencySize, number> = {
 
 // Base revenue growth median by size × year
 const REVENUE_GROWTH_BASE: Record<AgencySize, Record<number, number>> = {
-  micro: { 2022: 28, 2023: 18, 2024: 22 },
-  small: { 2022: 20, 2023: 14, 2024: 17 },
-  mid:   { 2022: 15, 2023: 10, 2024: 13 },
-  large: { 2022: 10, 2023:  7, 2024:  9 },
+  micro: { 2022: 28, 2023: 18, 2024: 22, 2025: 20, 2026: 18 },
+  small: { 2022: 20, 2023: 14, 2024: 17, 2025: 15, 2026: 14 },
+  mid:   { 2022: 15, 2023: 10, 2024: 13, 2025: 11, 2026: 10 },
+  large: { 2022: 10, 2023:  7, 2024:  9, 2025:  8, 2026:  7 },
 };
 
 // Regional adjustment (additive, pp)
