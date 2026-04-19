@@ -59,6 +59,7 @@ type BenchmarkRow = {
   peerCount: number;
   thresholdMet: boolean;
   needed: number | null;
+  source: "peers" | "seed" | "none";
   own: { revenueGrowth: number | null; grossMargin: number | null; netMargin: number | null };
   peers: { revenueGrowth: MetricStats; grossMargin: MetricStats; netMargin: MetricStats } | null;
 };
@@ -291,9 +292,9 @@ export default function DashboardPage() {
 
           {benchmarks.length === 0 ? (
             <div style={{ ...cardStyle, color: "#888", textAlign: "center" }}>
-              <p style={{ margin: 0 }}>No peer data available yet for your segment.</p>
+              <p style={{ margin: 0 }}>No benchmark data available for your segment.</p>
             </div>
-          ) : !activeBenchmark ? null : !activeBenchmark.thresholdMet ? (
+          ) : !activeBenchmark ? null : activeBenchmark.source === "none" ? (
             <div style={{ ...cardStyle, textAlign: "center" }}>
               <p style={{ margin: "0 0 0.5rem", fontWeight: 600, fontSize: "1.125rem" }}>
                 {activeBenchmark.peerCount} / 30 peers
@@ -337,7 +338,9 @@ export default function DashboardPage() {
                 </tbody>
               </table>
               <p style={{ padding: "0.625rem 1rem", margin: 0, fontSize: "0.75rem", color: "#aaa", borderTop: "1px solid #f0f0f0" }}>
-                Based on {activeBenchmark.peerCount} peers — same size, region & service type
+                {activeBenchmark.source === "seed"
+                  ? "Industry benchmark data — updates as more agencies join your segment"
+                  : `Based on ${activeBenchmark.peerCount} peers — same size, region & service type`}
               </p>
             </div>
           )}
