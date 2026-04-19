@@ -289,11 +289,11 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {!activeBenchmark ? (
+          {benchmarks.length === 0 ? (
             <div style={{ ...cardStyle, color: "#888", textAlign: "center" }}>
-              <p style={{ margin: 0 }}>Loading benchmarks…</p>
+              <p style={{ margin: 0 }}>No peer data available yet for your segment.</p>
             </div>
-          ) : !activeBenchmark.thresholdMet ? (
+          ) : !activeBenchmark ? null : !activeBenchmark.thresholdMet ? (
             <div style={{ ...cardStyle, textAlign: "center" }}>
               <p style={{ margin: "0 0 0.5rem", fontWeight: 600, fontSize: "1.125rem" }}>
                 {activeBenchmark.peerCount} / 30 peers

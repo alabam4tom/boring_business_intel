@@ -52,30 +52,42 @@ export async function benchmarkRoutes(app: FastifyInstance) {
 
     const years = ownSubmissions.map((s) => s.periodYear);
 
-    // Query peer percentiles — same agencySize, region, serviceType
-    const rows = await db.execute(sql`
-      SELECT
-        k.period_year,
-        COUNT(DISTINCT k.organization_id)::int AS peer_count,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_p25,
-        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_median,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_p75,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_p25,
-        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_median,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_p75,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_p25,
-        PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_median,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_p75
-      FROM kpi_submissions k
-      JOIN organizations o ON k.organization_id = o.id
-      WHERE o.agency_size  = ${org.agencySize}
-        AND o.region       = ${org.region}
-        AND o.service_type = ${org.serviceType}
-        AND k.period_year  = ANY(${years})
-      GROUP BY k.period_year
-      ORDER BY k.period_year DESC
-    `) as PercentileRow[];
+    // Build IN (y1, y2, ...) to avoid array parameter issues with postgres-js
+    const yearsSql = sql.join(years.map((y) => sql`${y}`), sql`, `);
 
+    // Query peer percentiles — same agencySize, region, serviceType
+    let rawRows: Record<string, unknown>[];
+    try {
+      const result = await db.execute(sql`
+        SELECT
+          k.period_year,
+          COUNT(DISTINCT k.organization_id)::int AS peer_count,
+          PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_p25,
+          PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_median,
+          PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.revenue_growth) AS rg_p75,
+          PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_p25,
+          PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_median,
+          PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.gross_margin)   AS gm_p75,
+          PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_p25,
+          PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_median,
+          PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY k.net_margin)     AS nm_p75
+        FROM kpi_submissions k
+        JOIN organizations o ON k.organization_id = o.id
+        WHERE o.agency_size  = ${org.agencySize}
+          AND o.region       = ${org.region}
+          AND o.service_type = ${org.serviceType}
+          AND k.period_year  IN (${yearsSql})
+        GROUP BY k.period_year
+        ORDER BY k.period_year DESC
+      `);
+      // postgres-js returns a RowList which extends Array — spread to a plain array
+      rawRows = Array.from(result as unknown as Iterable<Record<string, unknown>>);
+    } catch (err) {
+      app.log.error(err, "benchmark query failed");
+      return reply.status(500).send({ error: { code: "QUERY_ERROR", message: "Benchmark query failed" } });
+    }
+
+    const rows = rawRows as PercentileRow[];
     const ownByYear = Object.fromEntries(ownSubmissions.map((s) => [s.periodYear, s]));
 
     const data = rows.map((row) => {
