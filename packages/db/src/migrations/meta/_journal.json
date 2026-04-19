@@ -15,6 +15,13 @@
       "when": 1776529974128,
       "tag": "0001_shallow_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776606070875,
+      "tag": "0002_ambitious_starhawk",
+      "breakpoints": true
     }
   ]
 }
