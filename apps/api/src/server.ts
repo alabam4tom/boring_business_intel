@@ -3,6 +3,7 @@ import cors from "@fastify/cors";
 import authPlugin from "./plugins/auth.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { kpiRoutes } from "./routes/kpi.js";
+import { benchmarkRoutes } from "./routes/benchmarks.js";
 
 const fastify = Fastify({
   logger: {
@@ -18,6 +19,7 @@ await fastify.register(cors, {
 await fastify.register(authPlugin);
 await fastify.register(organizationRoutes);
 await fastify.register(kpiRoutes);
+await fastify.register(benchmarkRoutes);
 
 fastify.get("/api/v1/health", async () => {
   return { status: "ok" };
