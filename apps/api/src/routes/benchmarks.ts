@@ -113,7 +113,7 @@ export async function benchmarkRoutes(app: FastifyInstance) {
       let source: "peers" | "seed" | "none";
       let stats: { revenueGrowth: { p25: number | null; median: number | null; p75: number | null }; grossMargin: { p25: number | null; median: number | null; p75: number | null }; netMargin: { p25: number | null; median: number | null; p75: number | null } } | null = null;
 
-      if (thresholdMet && peer) {
+      if (thresholdMet && peer && org.subscriptionTier !== "free") {
         source = "peers";
         stats = {
           revenueGrowth: { p25: peer.rg_p25, median: peer.rg_median, p75: peer.rg_p75 },
@@ -146,6 +146,6 @@ export async function benchmarkRoutes(app: FastifyInstance) {
       };
     }).sort((a, b) => b.periodYear - a.periodYear);
 
-    return reply.send({ data });
+    return reply.send({ data, subscriptionTier: org.subscriptionTier });
   });
 }

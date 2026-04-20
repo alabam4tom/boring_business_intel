@@ -1,9 +1,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rawBody from "fastify-raw-body";
 import authPlugin from "./plugins/auth.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { kpiRoutes } from "./routes/kpi.js";
 import { benchmarkRoutes } from "./routes/benchmarks.js";
+import { billingRoutes } from "./routes/billing.js";
 
 const fastify = Fastify({
   logger: {
@@ -16,10 +18,13 @@ await fastify.register(cors, {
   credentials: true,
 });
 
+await fastify.register(rawBody, { global: false, encoding: false });
+
 await fastify.register(authPlugin);
 await fastify.register(organizationRoutes);
 await fastify.register(kpiRoutes);
 await fastify.register(benchmarkRoutes);
+await fastify.register(billingRoutes);
 
 fastify.get("/api/v1/health", async () => {
   return { status: "ok" };

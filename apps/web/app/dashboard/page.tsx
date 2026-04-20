@@ -96,6 +96,8 @@ export default function DashboardPage() {
   const [submissions, setSubmissions] = useState<KpiSubmission[]>([]);
   const [benchmarks, setBenchmarks] = useState<BenchmarkRow[]>([]);
   const [benchmarkYear, setBenchmarkYear] = useState<number | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<"free" | "pro" | "enterprise">("free");
+  const [upgrading, setUpgrading] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
   // form state
@@ -123,6 +125,9 @@ export default function DashboardPage() {
       if (benchData?.data?.length) {
         setBenchmarks(benchData.data);
         setBenchmarkYear(benchData.data[0].periodYear);
+      }
+      if (benchData?.subscriptionTier) {
+        setSubscriptionTier(benchData.subscriptionTier);
       }
     }).finally(() => setLoading(false));
   }, [session, isPending, router]);
@@ -163,10 +168,25 @@ export default function DashboardPage() {
       setBenchmarks(benchData.data);
       setBenchmarkYear(benchData.data[0].periodYear);
     }
+    if (benchData?.subscriptionTier) setSubscriptionTier(benchData.subscriptionTier);
 
     setShowForm(false);
     setRevenueGrowth(""); setGrossMargin(""); setNetMargin("");
     setFormStatus("idle");
+  }
+
+  async function onUpgrade() {
+    setUpgrading(true);
+    const res = await fetch(`${API}/api/v1/billing/checkout`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      const { url } = await res.json();
+      window.location.href = url;
+    } else {
+      setUpgrading(false);
+    }
   }
 
   const submittedYears = new Set(submissions.map(s => s.periodYear));
@@ -195,6 +215,21 @@ export default function DashboardPage() {
           Sign out
         </button>
       </div>
+
+      {/* ── UPGRADE BANNER ── */}
+      {subscriptionTier === "free" && submissions.length > 0 && (
+        <div style={{ background: "#f9f5ff", border: "1px solid #e0d4ff", borderRadius: "0.5rem", padding: "1rem 1.25rem", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={{ margin: 0, fontWeight: 600, fontSize: "0.9375rem" }}>Upgrade to Pro</p>
+            <p style={{ margin: "0.125rem 0 0", fontSize: "0.8125rem", color: "#666" }}>
+              Unlock real anonymous peer benchmarks once your segment reaches 30 agencies.
+            </p>
+          </div>
+          <button onClick={onUpgrade} disabled={upgrading} style={{ ...btnPrimary, background: "#7c3aed", whiteSpace: "nowrap", marginLeft: "1rem" }}>
+            {upgrading ? "Redirecting…" : "Upgrade →"}
+          </button>
+        </div>
+      )}
 
       {/* ── KPI SUBMISSIONS ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

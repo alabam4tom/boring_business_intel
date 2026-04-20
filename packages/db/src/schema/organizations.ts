@@ -1,4 +1,5 @@
 import { pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "pro", "enterprise"]);
 import { user } from "./auth.js";
 
 export const agencySizeEnum = pgEnum("agency_size", [
@@ -33,6 +34,9 @@ export const organizations = pgTable("organizations", {
   agencySize: agencySizeEnum("agency_size").notNull(),
   region: regionEnum("region").notNull(),
   serviceType: serviceTypeEnum("service_type").notNull(),
+  subscriptionTier: subscriptionTierEnum("subscription_tier").notNull().default("free"),
+  lsCustomerId: text("ls_customer_id"),
+  lsSubscriptionId: text("ls_subscription_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

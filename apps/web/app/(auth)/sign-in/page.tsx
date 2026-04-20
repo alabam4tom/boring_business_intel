@@ -49,9 +49,10 @@ export default function SignInPage() {
     event.preventDefault();
     setStatus("loading");
     setErrorMessage("");
+    const origin = window.location.origin;
     const { error } = await authClient.signIn.magicLink({
       email,
-      callbackURL: "/dashboard",
+      callbackURL: `${origin}/dashboard`,
     });
     if (error) {
       setStatus("error");
@@ -64,9 +65,10 @@ export default function SignInPage() {
   async function onGoogleSignIn() {
     setStatus("loading");
     setErrorMessage("");
+    const origin = window.location.origin;
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: "/dashboard",
+      callbackURL: `${origin}/dashboard`,
     });
     if (error) {
       setStatus("error");
