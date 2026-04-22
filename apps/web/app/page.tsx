@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { Nav } from "./components/Nav";
 
 export const metadata: Metadata = {
   title: "Financial Benchmarks for Digital Agencies — BoringBusinessIntel",
@@ -187,80 +188,7 @@ export default function Home() {
         }}
       >
         {/* ── NAV ──────────────────────────────────────────────────────── */}
-        <nav
-          role="navigation"
-          aria-label="Main navigation"
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 50,
-            background: "rgba(255,255,255,0.95)",
-            backdropFilter: "blur(10px)",
-            WebkitBackdropFilter: "blur(10px)",
-            borderBottom: "1px solid #e5e7eb",
-          }}
-        >
-          <div
-            style={{
-              maxWidth: 1100,
-              margin: "0 auto",
-              padding: "0 24px",
-              height: 64,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <Link
-              href="/"
-              aria-label="BoringBusinessIntel home"
-              style={{
-                fontWeight: 800,
-                fontSize: 18,
-                letterSpacing: "-0.03em",
-                color: "#111827",
-              }}
-            >
-              BBI
-            </Link>
-            <div
-              style={{ display: "flex", alignItems: "center", gap: 28 }}
-              aria-label="Site links"
-            >
-              <a
-                href="#how-it-works"
-                style={{ fontSize: 14, color: "#4b5563" }}
-              >
-                How it works
-              </a>
-              <a href="#features" style={{ fontSize: 14, color: "#4b5563" }}>
-                Features
-              </a>
-              <a href="#pricing" style={{ fontSize: 14, color: "#4b5563" }}>
-                Pricing
-              </a>
-              <a href="#faq" style={{ fontSize: 14, color: "#4b5563" }}>
-                FAQ
-              </a>
-              <Link href="/sign-in" style={{ fontSize: 14, color: "#4b5563" }}>
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "#fff",
-                  background: "#7c3aed",
-                  padding: "8px 18px",
-                  borderRadius: 8,
-                }}
-              >
-                Get started
-              </Link>
-            </div>
-          </div>
-        </nav>
+        <Nav />
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}
         <section
