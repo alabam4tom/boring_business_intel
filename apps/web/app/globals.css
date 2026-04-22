@@ -21,28 +21,15 @@ a {
   text-decoration: none;
 }
 
-/* Responsive nav */
-.nav-desktop {
-  display: flex;
-  align-items: center;
-  gap: 28px;
-}
-.nav-hamburger {
-  display: none;
-}
-.nav-mobile-menu {
-  display: none;
+/* Nav links — hidden on small screens, logo + CTA always visible */
+.nav-link {
+  font-size: 14px;
+  color: #4b5563;
 }
 
-@media (max-width: 768px) {
-  .nav-desktop {
+@media (max-width: 640px) {
+  .nav-link {
     display: none;
-  }
-  .nav-hamburger {
-    display: flex;
-  }
-  .nav-mobile-menu {
-    display: flex;
   }
 }
 

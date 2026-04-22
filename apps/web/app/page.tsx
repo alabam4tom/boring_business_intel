@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Nav } from "./components/Nav";
 
 export const metadata: Metadata = {
   title: "Financial Benchmarks for Digital Agencies — BoringBusinessIntel",
@@ -188,7 +187,59 @@ export default function Home() {
         }}
       >
         {/* ── NAV ──────────────────────────────────────────────────────── */}
-        <Nav />
+        <nav
+          role="navigation"
+          aria-label="Main navigation"
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 50,
+            background: "rgba(255,255,255,0.95)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            borderBottom: "1px solid #e5e7eb",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 1100,
+              margin: "0 auto",
+              padding: "0 24px",
+              height: 64,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Link
+              href="/"
+              aria-label="BoringBusinessIntel home"
+              style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.03em", color: "#111827" }}
+            >
+              BBI
+            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+              <a href="#how-it-works" className="nav-link">How it works</a>
+              <a href="#features" className="nav-link">Features</a>
+              <a href="#pricing" className="nav-link">Pricing</a>
+              <a href="#faq" className="nav-link">FAQ</a>
+              <Link href="/sign-in" className="nav-link">Sign in</Link>
+              <Link
+                href="/sign-up"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "#fff",
+                  background: "#7c3aed",
+                  padding: "8px 18px",
+                  borderRadius: 8,
+                }}
+              >
+                Get started
+              </Link>
+            </div>
+          </div>
+        </nav>
 
         {/* ── HERO ─────────────────────────────────────────────────────── */}
         <section
