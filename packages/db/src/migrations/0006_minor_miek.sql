@@ -1,0 +1,1 @@
+CREATE INDEX "idx_codat_connections_company_id" ON "codat_connections" USING btree ("codat_company_id");

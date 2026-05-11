@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "codat_connections_org_provider_linked_unique" ON "codat_connections" USING btree ("organization_id","provider") WHERE status = 'linked';--> statement-breakpoint
+CREATE UNIQUE INDEX "codat_connections_org_provider_pending_unique" ON "codat_connections" USING btree ("organization_id","provider") WHERE status = 'pending_auth';

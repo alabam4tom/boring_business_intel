@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { fromNodeHeaders } from "better-auth/node";
 import { db } from "@repo/db";
-import { kpiSubmissions, organizationMembers } from "@repo/db/schema";
+import { kpiSubmissions } from "@repo/db/schema";
 import { submitKpiSchema } from "@repo/shared/schemas/kpi";
 import { uuidv7 } from "uuidv7";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function kpiRoutes(app: FastifyInstance) {
   app.post("/api/v1/kpi-submissions", async (request, reply) => {
@@ -95,11 +95,14 @@ export async function kpiRoutes(app: FastifyInstance) {
     }
 
     const { year } = request.params as { year: string };
-    const periodYear = parseInt(year, 10);
+    const yearInt = parseInt(year, 10);
+    if (isNaN(yearInt)) {
+      return reply.status(400).send({ error: { code: "INVALID_YEAR", message: "Year must be a valid number" } });
+    }
 
     const updated = await db.update(kpiSubmissions)
       .set({ revenueGrowth: result.data.revenueGrowth, grossMargin: result.data.grossMargin, netMargin: result.data.netMargin })
-      .where(eq(kpiSubmissions.organizationId, membership.organizationId))
+      .where(and(eq(kpiSubmissions.organizationId, membership.organizationId), eq(kpiSubmissions.periodYear, yearInt)))
       .returning();
 
     if (!updated.length) {

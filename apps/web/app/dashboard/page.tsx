@@ -211,9 +211,14 @@ export default function DashboardPage() {
           <h1 style={{ fontSize: "1.5rem", margin: 0 }}>{org.name}</h1>
           <p style={{ color: "#666", margin: "0.25rem 0 0", fontSize: "0.875rem" }}>{session?.user?.email}</p>
         </div>
-        <button onClick={() => authClient.signOut().then(() => router.push("/sign-in"))} style={btnGhost}>
-          Sign out
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <a href="/settings/integrations" style={{ ...btnGhost, textDecoration: "none", display: "inline-block" }}>
+            Integrations
+          </a>
+          <button onClick={() => authClient.signOut().then(() => router.push("/sign-in"))} style={btnGhost}>
+            Sign out
+          </button>
+        </div>
       </div>
 
       {/* ── UPGRADE BANNER ── */}
