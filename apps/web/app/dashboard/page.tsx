@@ -247,6 +247,9 @@ export default function DashboardPage() {
           <a href="/settings/integrations" style={{ ...btnGhost, textDecoration: "none", display: "inline-block" }}>
             Integrations
           </a>
+          <a href="/settings/billing" style={{ ...btnGhost, textDecoration: "none", display: "inline-block" }}>
+            Billing
+          </a>
           <button onClick={() => authClient.signOut().then(() => router.push("/sign-in"))} style={btnGhost}>
             Sign out
           </button>

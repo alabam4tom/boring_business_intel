@@ -37,6 +37,8 @@ export const organizations = pgTable("organizations", {
   subscriptionTier: subscriptionTierEnum("subscription_tier").notNull().default("free"),
   lsCustomerId: text("ls_customer_id"),
   lsSubscriptionId: text("ls_subscription_id"),
+  lsCurrentPeriodEnd: timestamp("ls_current_period_end", { withTimezone: true }),
+  lsSubscriptionStatus: text("ls_subscription_status"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

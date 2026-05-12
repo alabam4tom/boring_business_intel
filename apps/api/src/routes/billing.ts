@@ -71,6 +71,85 @@ export async function billingRoutes(app: FastifyInstance) {
     return reply.send({ url: data.data.attributes.url });
   });
 
+  // Get current billing status
+  app.get("/api/v1/billing", async (request, reply) => {
+    const session = await app.auth.api.getSession({
+      headers: fromNodeHeaders(request.headers),
+    });
+    if (!session?.user) {
+      return reply.status(401).send({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } });
+    }
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: (m, { eq }) => eq(m.userId, session.user.id),
+    });
+    if (!membership) {
+      return reply.status(404).send({ error: { code: "NO_ORG", message: "No organization found" } });
+    }
+
+    const org = await db.query.organizations.findFirst({
+      where: (o, { eq }) => eq(o.id, membership.organizationId),
+    });
+    if (!org) {
+      return reply.status(404).send({ error: { code: "ORG_NOT_FOUND", message: "Organization not found" } });
+    }
+
+    return reply.send({
+      data: {
+        tier: org.subscriptionTier,
+        subscriptionStatus: org.lsSubscriptionStatus,
+        currentPeriodEnd: org.lsCurrentPeriodEnd?.toISOString() ?? null,
+        hasSubscription: org.lsSubscriptionId !== null,
+      },
+    });
+  });
+
+  // Get LemonSqueezy customer portal URL
+  app.post("/api/v1/billing/portal", async (request, reply) => {
+    const session = await app.auth.api.getSession({
+      headers: fromNodeHeaders(request.headers),
+    });
+    if (!session?.user) {
+      return reply.status(401).send({ error: { code: "UNAUTHORIZED", message: "Not authenticated" } });
+    }
+
+    const membership = await db.query.organizationMembers.findFirst({
+      where: (m, { eq }) => eq(m.userId, session.user.id),
+    });
+    if (!membership) {
+      return reply.status(404).send({ error: { code: "NO_ORG", message: "No organization found" } });
+    }
+
+    const org = await db.query.organizations.findFirst({
+      where: (o, { eq }) => eq(o.id, membership.organizationId),
+    });
+    if (!org?.lsCustomerId) {
+      return reply.status(404).send({ error: { code: "NOT_SUBSCRIBED", message: "No active subscription" } });
+    }
+
+    const apiKey = process.env.LEMONSQUEEZY_API_KEY;
+    if (!apiKey) {
+      return reply.status(503).send({ error: { code: "BILLING_NOT_CONFIGURED", message: "Billing not configured" } });
+    }
+
+    const res = await fetch(`${LS_API}/customers/${org.lsCustomerId}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/vnd.api+json",
+      },
+    });
+
+    if (!res.ok) {
+      app.log.error({ lsCustomerId: org.lsCustomerId }, "LemonSqueezy customer fetch failed");
+      return reply.status(502).send({ error: { code: "PORTAL_FETCH_FAILED", message: "Could not load billing portal" } });
+    }
+
+    const body = await res.json() as { data: { attributes: { urls: { customer_portal: string } } } };
+    const portalUrl = body.data.attributes.urls.customer_portal;
+
+    return reply.send({ data: { portalUrl } });
+  });
+
   // LemonSqueezy webhook — verify signature then update subscription
   app.post("/api/v1/billing/webhook", {
     config: { rawBody: true },
@@ -98,13 +177,24 @@ export async function billingRoutes(app: FastifyInstance) {
 
     const event = request.body as {
       meta: { event_name: string; custom_data?: { organization_id?: string } };
-      data: { attributes: { customer_id: number; status: string; first_subscription_item?: unknown } };
+      data: {
+        id: string;
+        attributes: {
+          customer_id: number;
+          status: string;
+          renews_at: string | null;
+          ends_at: string | null;
+        };
+      };
     };
 
     const eventName = event.meta.event_name;
     const orgId = event.meta.custom_data?.organization_id;
     const lsCustomerId = String(event.data.attributes.customer_id);
+    const lsSubscriptionId = event.data.id;
     const status = event.data.attributes.status;
+    const renewsAt = event.data.attributes.renews_at ? new Date(event.data.attributes.renews_at) : null;
+    const endsAt = event.data.attributes.ends_at ? new Date(event.data.attributes.ends_at) : null;
 
     if (!orgId) {
       return reply.status(200).send({ ok: true });
@@ -112,15 +202,37 @@ export async function billingRoutes(app: FastifyInstance) {
 
     if (eventName === "subscription_created" || (eventName === "subscription_updated" && status === "active")) {
       await db.update(organizations)
-        .set({ subscriptionTier: "pro", lsCustomerId, updatedAt: new Date() })
+        .set({
+          subscriptionTier: "pro",
+          lsCustomerId,
+          lsSubscriptionId,
+          lsSubscriptionStatus: "active",
+          lsCurrentPeriodEnd: renewsAt,
+          updatedAt: new Date(),
+        })
         .where(eq(organizations.id, orgId));
-    } else if (
-      eventName === "subscription_cancelled" ||
-      (eventName === "subscription_updated" && ["cancelled", "expired", "past_due"].includes(status))
-    ) {
+      app.log.info({ orgId, eventName }, "Subscription activated");
+    } else if (eventName === "subscription_cancelled" || (eventName === "subscription_updated" && status === "cancelled")) {
+      // Keep tier=pro — access remains until ends_at
       await db.update(organizations)
-        .set({ subscriptionTier: "free", updatedAt: new Date() })
+        .set({
+          lsSubscriptionStatus: "cancelled",
+          lsCurrentPeriodEnd: endsAt,
+          updatedAt: new Date(),
+        })
         .where(eq(organizations.id, orgId));
+      app.log.info({ orgId, eventName, endsAt }, "Subscription cancellation scheduled");
+    } else if (eventName === "subscription_expired" || (eventName === "subscription_updated" && status === "expired")) {
+      // Billing period ended — downgrade to free
+      await db.update(organizations)
+        .set({
+          subscriptionTier: "free",
+          lsSubscriptionStatus: null,
+          lsCurrentPeriodEnd: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(organizations.id, orgId));
+      app.log.info({ orgId, eventName }, "Subscription expired — downgraded to free");
     }
 
     return reply.send({ ok: true });
