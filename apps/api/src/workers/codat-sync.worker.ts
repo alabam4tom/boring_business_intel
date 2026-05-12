@@ -2,11 +2,12 @@ import type PgBoss from "pg-boss";
 import type { CodatSyncPayload } from "./index.js";
 import { db } from "@repo/db";
 import { kpiSubmissions, codatConnections, dataQualityScores } from "@repo/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
 import { fetchCodatPnl } from "../services/codat-client.js";
 import { normalizeToAnnual } from "../services/coa-normalizer.js";
 import { computeKpis } from "../services/kpi-calculator.js";
+import { computeDataQuality, isOutlierSubmission } from "../services/data-quality.js";
 
 export async function codatSyncWorker(jobs: PgBoss.JobWithMetadata<CodatSyncPayload>[]): Promise<void> {
   for (const job of jobs) {
@@ -44,6 +45,7 @@ async function runSync(payload: CodatSyncPayload): Promise<void> {
   const kpiResults = computeKpis(annualMetrics);
 
   for (const kpi of kpiResults) {
+    const outlier = isOutlierSubmission(kpi);
     await db
       .insert(kpiSubmissions)
       .values({
@@ -53,6 +55,7 @@ async function runSync(payload: CodatSyncPayload): Promise<void> {
         revenueGrowth: kpi.revenueGrowth,
         grossMargin: kpi.grossMargin,
         netMargin: kpi.netMargin,
+        isOutlier: outlier,
       })
       .onConflictDoUpdate({
         target: [kpiSubmissions.organizationId, kpiSubmissions.periodYear],
@@ -60,15 +63,13 @@ async function runSync(payload: CodatSyncPayload): Promise<void> {
           revenueGrowth: kpi.revenueGrowth,
           grossMargin: kpi.grossMargin,
           netMargin: kpi.netMargin,
+          isOutlier: outlier,
         },
       });
   }
 
   const totalPeriodsAvailable = annualMetrics.reduce((sum, m) => sum + m.periodsCount, 0);
-  const score = Math.round(Math.min(totalPeriodsAvailable / 24, 1) * 100);
-  const issues: string[] = [];
-  if (totalPeriodsAvailable < 12) issues.push("INCOMPLETE_DATA");
-  else if (totalPeriodsAvailable < 24) issues.push("PARTIAL_DATA");
+  const { score, issues } = computeDataQuality(kpiResults, totalPeriodsAvailable);
 
   await db
     .insert(dataQualityScores)

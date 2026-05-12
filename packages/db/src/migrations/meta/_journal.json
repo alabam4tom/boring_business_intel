@@ -71,6 +71,13 @@
       "when": 1778565530117,
       "tag": "0009_pale_nehzno",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778568717068,
+      "tag": "0010_past_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

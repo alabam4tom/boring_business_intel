@@ -74,6 +74,7 @@ export async function benchmarkRoutes(app: FastifyInstance) {
           AND o.region       = ${org.region}
           AND o.service_type = ${org.serviceType}
           AND k.period_year  IN (${yearsSql})
+          AND k.is_outlier   = false
         GROUP BY k.period_year
         ORDER BY k.period_year DESC
       `);

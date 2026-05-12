@@ -1,0 +1,1 @@
+ALTER TABLE "kpi_submissions" ADD COLUMN "is_outlier" boolean DEFAULT false NOT NULL;

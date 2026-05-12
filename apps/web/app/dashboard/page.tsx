@@ -52,6 +52,7 @@ const thStyle: React.CSSProperties = { padding: "0.75rem 1rem", textAlign: "righ
 const tdStyle: React.CSSProperties = { padding: "0.75rem 1rem", textAlign: "right", fontSize: "0.9375rem" };
 
 type Org = { id: string; name: string; agencySize: string; region: string; serviceType: string; role: string };
+type DataQuality = { score: number; issues: string[]; isLowQuality: boolean; periodsAvailable: number; computedAt: string };
 type KpiSubmission = { id: string; periodYear: number; revenueGrowth: number | null; grossMargin: number | null; netMargin: number | null };
 type MetricStats = { p25: number | null; median: number | null; p75: number | null };
 type BenchmarkRow = {
@@ -88,6 +89,34 @@ function positionColor(pos: string): string {
   return "#888";
 }
 
+const ISSUE_LABELS: Record<string, string> = {
+  INCOMPLETE_DATA: "Less than 1 year of data",
+  PARTIAL_DATA: "Less than 2 years of data",
+  INCONSISTENT_MARGINS: "Inconsistent margins detected",
+  ANOMALOUS_VALUES: "Anomalous values excluded from benchmarks",
+};
+
+function DataQualityBadge({ quality }: { quality: { score: number; issues: string[]; isLowQuality: boolean } }) {
+  const dotColor = quality.score >= 80 ? "#16a34a" : quality.score >= 50 ? "#ca8a04" : "#dc2626";
+  return (
+    <div style={{ marginTop: "0.75rem", padding: "0.625rem 1rem", background: "#f9f9f9", border: "1px solid #e5e5e5", borderRadius: "0.375rem", fontSize: "0.875rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <span style={{ width: "0.625rem", height: "0.625rem", borderRadius: "9999px", background: dotColor, flexShrink: 0, display: "inline-block" }} />
+        <span style={{ color: "#333" }}>Data quality: {quality.score}/100</span>
+      </div>
+      {quality.issues.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.5rem" }}>
+          {quality.issues.map((issue) => (
+            <span key={issue} style={{ padding: "0.125rem 0.5rem", background: "#f0f0f0", borderRadius: "0.25rem", fontSize: "0.75rem", color: "#555" }}>
+              {ISSUE_LABELS[issue] ?? issue}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
@@ -99,6 +128,7 @@ export default function DashboardPage() {
   const [subscriptionTier, setSubscriptionTier] = useState<"free" | "pro" | "enterprise">("free");
   const [upgrading, setUpgrading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [dataQuality, setDataQuality] = useState<DataQuality | null>(null);
 
   // form state
   const [year, setYear] = useState(String(CURRENT_YEAR - 1));
@@ -119,7 +149,8 @@ export default function DashboardPage() {
       }),
       fetch(`${API}/api/v1/kpi-submissions`, { credentials: "include" }).then(r => r.json()),
       fetch(`${API}/api/v1/benchmarks`, { credentials: "include" }).then(r => r.json()),
-    ]).then(([orgData, kpiData, benchData]) => {
+      fetch(`${API}/api/v1/data-quality`, { credentials: "include" }).then(r => r.json()),
+    ]).then(([orgData, kpiData, benchData, dqData]) => {
       if (orgData) setOrg(orgData.data);
       if (kpiData?.data) setSubmissions(kpiData.data);
       if (benchData?.data?.length) {
@@ -129,6 +160,7 @@ export default function DashboardPage() {
       if (benchData?.subscriptionTier) {
         setSubscriptionTier(benchData.subscriptionTier);
       }
+      if (dqData?.data) setDataQuality(dqData.data);
     }).finally(() => setLoading(false));
   }, [session, isPending, router]);
 
@@ -243,6 +275,10 @@ export default function DashboardPage() {
           <button onClick={() => setShowForm(true)} style={btnPrimary}>+ Add year</button>
         )}
       </div>
+
+      {dataQuality && submissions.length > 0 && (
+        <DataQualityBadge quality={dataQuality} />
+      )}
 
       {showForm && (
         <div style={cardStyle}>
@@ -382,6 +418,11 @@ export default function DashboardPage() {
                   ? "Industry benchmark data — updates as more agencies join your segment"
                   : `Based on ${activeBenchmark.peerCount} peers — same size, region & service type`}
               </p>
+              {dataQuality?.isLowQuality && (
+                <p style={{ padding: "0 1rem 0.625rem", margin: 0, fontSize: "0.75rem", color: "#b45309" }}>
+                  ⚠ Low data quality may affect benchmark reliability
+                </p>
+              )}
             </div>
           )}
         </>

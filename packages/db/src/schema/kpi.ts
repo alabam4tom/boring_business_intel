@@ -1,4 +1,4 @@
-import { doublePrecision, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { boolean, doublePrecision, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organizations } from "./organizations.js";
 
 export const kpiSubmissions = pgTable(
@@ -13,6 +13,7 @@ export const kpiSubmissions = pgTable(
     grossMargin: doublePrecision("gross_margin"),
     netMargin: doublePrecision("net_margin"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+    isOutlier: boolean("is_outlier").notNull().default(false),
   },
   (table) => ({
     uniqueOrgYear: uniqueIndex("kpi_submissions_org_year_unique").on(table.organizationId, table.periodYear),
