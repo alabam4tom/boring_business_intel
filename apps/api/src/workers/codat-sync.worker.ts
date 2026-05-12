@@ -8,12 +8,23 @@ import { fetchCodatPnl } from "../services/codat-client.js";
 import { normalizeToAnnual } from "../services/coa-normalizer.js";
 import { computeKpis } from "../services/kpi-calculator.js";
 
-export async function codatSyncWorker(jobs: PgBoss.Job<CodatSyncPayload>[]): Promise<void> {
+export async function codatSyncWorker(jobs: PgBoss.JobWithMetadata<CodatSyncPayload>[]): Promise<void> {
   for (const job of jobs) {
     try {
       await runSync(job.data);
     } catch (err) {
-      console.error({ jobId: job.id, ...job.data, err }, "[codat-sync] job failed");
+      console.error({ jobId: job.id, retryCount: job.retryCount, retryLimit: job.retryLimit, ...job.data, err }, "[codat-sync] job failed");
+      // Stamp syncFailedAt when all retries are exhausted
+      if (job.retryCount >= job.retryLimit) {
+        await db
+          .update(codatConnections)
+          .set({ syncFailedAt: new Date(), updatedAt: new Date() })
+          .where(eq(codatConnections.codatConnectionId, job.data.codatConnectionId));
+        console.error(
+          { organizationId: job.data.organizationId, codatCompanyId: job.data.codatCompanyId },
+          "[codat-sync] all retries exhausted — sync_failed_at set"
+        );
+      }
       throw err;
     }
   }

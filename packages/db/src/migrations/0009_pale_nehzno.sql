@@ -1,0 +1,1 @@
+ALTER TABLE "codat_connections" ADD COLUMN "sync_failed_at" timestamp with time zone;

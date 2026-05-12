@@ -3,12 +3,31 @@ import { fromNodeHeaders } from "better-auth/node";
 import { db } from "@repo/db";
 import { codatConnections } from "@repo/db/schema";
 import { AppError } from "@repo/shared/errors";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { uuidv7 } from "uuidv7";
 import { createCodatCompany, createCodatConnection, deleteCodatConnection, QBO_PLATFORM_KEY, XERO_PLATFORM_KEY } from "../../services/codat-client.js";
 import { connectQuickBooksSchema, connectXeroSchema } from "./schemas.js";
+import { getBoss } from "../../workers/index.js";
 
 type Provider = "quickbooks_online" | "xero";
+
+const PROVIDER_MAP: Record<string, Provider> = {
+  quickbooks: "quickbooks_online",
+  xero: "xero",
+};
+
+async function requireOwner(app: FastifyInstance, request: FastifyRequest) {
+  const session = await app.auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
+  if (!session?.user) throw new AppError("UNAUTHORIZED", "Not authenticated", 401);
+
+  const membership = await db.query.organizationMembers.findFirst({
+    where: (m, { eq }) => eq(m.userId, session.user.id),
+  });
+  if (!membership) throw new AppError("NO_ORG", "No organization found", 404);
+  if (membership.role !== "owner") throw new AppError("FORBIDDEN", "Only organization owners can manage integrations", 403);
+
+  return { session, membership };
+}
 
 async function connectProvider(
   app: FastifyInstance,
@@ -130,6 +149,83 @@ export async function integrationHandlers(app: FastifyInstance) {
 
   app.post("/api/v1/integrations/xero/connect", async (request, reply) => {
     return connectProvider(app, request, reply, "xero", XERO_PLATFORM_KEY, connectXeroSchema);
+  });
+
+  app.post("/api/v1/integrations/:provider/sync", async (request, reply) => {
+    try {
+      const { membership } = await requireOwner(app, request);
+      const { provider: providerParam } = request.params as { provider: string };
+      const provider = PROVIDER_MAP[providerParam];
+      if (!provider) {
+        return reply.status(400).send({ error: { code: "INVALID_PROVIDER", message: "Unknown provider" } });
+      }
+
+      const conn = await db.query.codatConnections.findFirst({
+        where: (c, { and, eq }) =>
+          and(eq(c.organizationId, membership.organizationId), eq(c.provider, provider), eq(c.status, "linked")),
+      });
+      if (!conn || !conn.codatConnectionId) {
+        return reply.status(404).send({ error: { code: "NOT_CONNECTED", message: "No active connection found for this provider" } });
+      }
+
+      await getBoss().send("codat-sync", {
+        organizationId: membership.organizationId,
+        codatConnectionId: conn.codatConnectionId,
+        codatCompanyId: conn.codatCompanyId,
+        triggeredBy: "manual",
+      });
+
+      app.log.info({ organizationId: membership.organizationId, provider, action: "integration.manual_sync" }, "Manual re-sync triggered");
+      return reply.status(202).send({ data: { message: "Sync initiated" } });
+    } catch (err) {
+      if (err instanceof AppError) return reply.status(err.statusCode).send({ error: { code: err.code, message: err.message } });
+      app.log.error(err);
+      return reply.status(500).send({ error: { code: "INTERNAL_ERROR", message: "Unexpected error" } });
+    }
+  });
+
+  app.delete("/api/v1/integrations/:provider", async (request, reply) => {
+    try {
+      const { membership } = await requireOwner(app, request);
+      const { provider: providerParam } = request.params as { provider: string };
+      const provider = PROVIDER_MAP[providerParam];
+      if (!provider) {
+        return reply.status(400).send({ error: { code: "INVALID_PROVIDER", message: "Unknown provider" } });
+      }
+
+      const conn = await db.query.codatConnections.findFirst({
+        where: (c, { and, eq, or }) =>
+          and(
+            eq(c.organizationId, membership.organizationId),
+            eq(c.provider, provider),
+            or(eq(c.status, "linked"), eq(c.status, "pending_auth"))
+          ),
+        orderBy: (c, { desc }) => [desc(c.createdAt)],
+      });
+      if (!conn) {
+        return reply.status(404).send({ error: { code: "NOT_CONNECTED", message: "No active connection found for this provider" } });
+      }
+
+      // Best-effort Codat deletion — don't fail if Codat is unavailable
+      if (conn.codatConnectionId) {
+        try {
+          await deleteCodatConnection(conn.codatCompanyId, conn.codatConnectionId);
+        } catch (err) {
+          app.log.warn({ organizationId: membership.organizationId, provider, err }, "Codat deletion failed — continuing with local disconnect");
+        }
+      }
+
+      await db.update(codatConnections)
+        .set({ status: "unlinked", updatedAt: new Date() })
+        .where(eq(codatConnections.id, conn.id));
+
+      app.log.info({ organizationId: membership.organizationId, provider, action: "integration.disconnected" }, "Integration disconnected");
+      return reply.status(204).send();
+    } catch (err) {
+      if (err instanceof AppError) return reply.status(err.statusCode).send({ error: { code: err.code, message: err.message } });
+      app.log.error(err);
+      return reply.status(500).send({ error: { code: "INTERNAL_ERROR", message: "Unexpected error" } });
+    }
   });
 
   app.get("/api/v1/integrations", async (request, reply) => {

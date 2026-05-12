@@ -83,6 +83,22 @@ export async function fetchCodatPnl(codatCompanyId: string): Promise<CodatPnlRes
   return res.json() as Promise<CodatPnlResponse>;
 }
 
+export type CodatConnectionStatus = "Linked" | "Deauthorized" | "PendingAuth" | "Unlinked";
+
+export async function getConnectionStatus(
+  codatCompanyId: string,
+  codatConnectionId: string
+): Promise<CodatConnectionStatus> {
+  const url = `${CODAT_BASE}/companies/${codatCompanyId}/connections/${codatConnectionId}`;
+  const res = await fetch(url, { headers: codatHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new AppError("CODAT_ERROR", `Failed to get connection status: ${res.status}`, 502, { detail: body });
+  }
+  const data = (await res.json()) as { status: CodatConnectionStatus };
+  return data.status;
+}
+
 export async function deleteCodatConnection(
   codatCompanyId: string,
   codatConnectionId: string

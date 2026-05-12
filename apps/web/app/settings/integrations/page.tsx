@@ -36,6 +36,28 @@ const btnDisabled: React.CSSProperties = {
   cursor: "not-allowed",
 };
 
+const btnGhost: React.CSSProperties = {
+  padding: "0.5rem 1rem",
+  border: "1px solid #e5e5e5",
+  borderRadius: "0.375rem",
+  backgroundColor: "#fff",
+  color: "#333",
+  fontSize: "0.875rem",
+  cursor: "pointer",
+};
+
+const btnGhostDisabled: React.CSSProperties = {
+  ...btnGhost,
+  color: "#999",
+  cursor: "not-allowed",
+};
+
+const btnDanger: React.CSSProperties = {
+  ...btnGhost,
+  color: "#b91c1c",
+  borderColor: "#fecaca",
+};
+
 const checkboxRowStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "flex-start",
@@ -176,6 +198,8 @@ function ProviderCard({
   lastSyncAt,
   connectEndpoint,
   hasOtherActive,
+  onReSync,
+  onDisconnect,
 }: {
   label: string;
   status: IntegrationStatus;
@@ -183,7 +207,17 @@ function ProviderCard({
   lastSyncAt: string | null;
   connectEndpoint: string;
   hasOtherActive: boolean;
+  onReSync: () => Promise<void>;
+  onDisconnect: () => Promise<void>;
 }) {
+  const [syncing, setSyncing] = useState(false);
+
+  async function handleReSync() {
+    setSyncing(true);
+    await onReSync();
+    setSyncing(false);
+  }
+
   return (
     <div style={cardStyle}>
       <h2 style={{ fontSize: "1.125rem", margin: "0 0 0.75rem" }}>{label}</h2>
@@ -203,6 +237,18 @@ function ProviderCard({
               Last synced: {new Date(lastSyncAt).toLocaleDateString()}
             </p>
           )}
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <button
+              onClick={handleReSync}
+              disabled={syncing}
+              style={syncing ? btnGhostDisabled : btnGhost}
+            >
+              {syncing ? "Syncing…" : "Re-sync now"}
+            </button>
+            <button onClick={onDisconnect} style={btnDanger}>
+              Disconnect
+            </button>
+          </div>
         </div>
       )}
 
@@ -252,15 +298,19 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<IntegrationsData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  async function fetchIntegrations() {
+    const res = await fetch(`${API}/api/v1/integrations`, { credentials: "include" });
+    const data = await res.json();
+    setIntegrations(data.data);
+  }
+
   useEffect(() => {
     if (isPending) return;
     if (!session?.user) {
       router.replace("/sign-in");
       return;
     }
-    fetch(`${API}/api/v1/integrations`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((res) => setIntegrations(res.data))
+    fetchIntegrations()
       .catch(() =>
         setIntegrations({
           quickbooks_online: emptyProvider,
@@ -269,6 +319,23 @@ export default function IntegrationsPage() {
       )
       .finally(() => setLoading(false));
   }, [session, isPending, router]);
+
+  async function handleReSync(providerParam: string) {
+    await fetch(`${API}/api/v1/integrations/${providerParam}/sync`, {
+      method: "POST",
+      credentials: "include",
+    });
+  }
+
+  async function handleDisconnect(providerParam: string) {
+    const res = await fetch(`${API}/api/v1/integrations/${providerParam}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (res.ok || res.status === 204) {
+      await fetchIntegrations();
+    }
+  }
 
   if (isPending || loading) {
     return (
@@ -306,6 +373,8 @@ export default function IntegrationsPage() {
         lastSyncAt={qbo.lastSyncAt}
         connectEndpoint="/api/v1/integrations/quickbooks/connect"
         hasOtherActive={xeroActive}
+        onReSync={() => handleReSync("quickbooks")}
+        onDisconnect={() => handleDisconnect("quickbooks")}
       />
 
       <ProviderCard
@@ -315,6 +384,8 @@ export default function IntegrationsPage() {
         lastSyncAt={xero.lastSyncAt}
         connectEndpoint="/api/v1/integrations/xero/connect"
         hasOtherActive={qboActive}
+        onReSync={() => handleReSync("xero")}
+        onDisconnect={() => handleDisconnect("xero")}
       />
     </main>
   );

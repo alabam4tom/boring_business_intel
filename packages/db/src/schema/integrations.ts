@@ -26,6 +26,7 @@ export const codatConnections = pgTable("codat_connections", {
   consentAcceptedAt: timestamp("consent_accepted_at", { withTimezone: true }),
   linkedAt: timestamp("linked_at", { withTimezone: true }),
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  syncFailedAt: timestamp("sync_failed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
