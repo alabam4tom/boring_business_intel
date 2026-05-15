@@ -6,6 +6,7 @@ import * as schema from "@repo/db/schema";
 import { uuidv7 } from "uuidv7";
 import type { FastifyBaseLogger } from "fastify";
 import { sendMagicLinkEmail } from "../services/email.js";
+import { getBoss, type EmailSendPayload } from "../workers/index.js";
 
 const trustedOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
   .split(",")
@@ -54,6 +55,25 @@ export function createAuth(logger: FastifyBaseLogger) {
         },
       }),
     ],
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+            try {
+              const payload: EmailSendPayload = {
+                to: user.email,
+                subject: "Welcome to BoringBusinessIntel",
+                html: `<p>Hi ${user.name ?? "there"},</p><p>Welcome to BoringBusinessIntel! You're on your way to benchmarking your agency's performance against peers.</p><p><a href="${appUrl}/onboarding">Start your setup →</a></p><p>The BoringBusinessIntel team</p>`,
+              };
+              await getBoss().send("email-send", payload);
+            } catch (err) {
+              logger.warn({ userId: user.id, email: user.email, err }, "[auth] failed to queue welcome email");
+            }
+          },
+        },
+      },
+    },
   });
 }
 
