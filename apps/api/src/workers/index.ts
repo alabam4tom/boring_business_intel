@@ -3,6 +3,7 @@ import { codatSyncWorker } from "./codat-sync.worker.js";
 import { tokenRefreshWorker } from "./token-refresh.worker.js";
 import { monthlyRefreshWorker } from "./monthly-refresh.worker.js";
 import { emailSendWorker } from "./email-send.worker.js";
+import { dataCleanupWorker } from "./data-cleanup.worker.js";
 
 export interface CodatSyncPayload {
   organizationId: string;
@@ -13,6 +14,8 @@ export interface CodatSyncPayload {
 
 import type { EmailSendPayload } from "../services/email.js";
 export type { EmailSendPayload } from "../services/email.js";
+import type { DataCleanupPayload } from "./data-cleanup.worker.js";
+export type { DataCleanupPayload } from "./data-cleanup.worker.js";
 
 let boss: PgBoss | undefined;
 
@@ -41,11 +44,17 @@ export async function initWorkers(): Promise<PgBoss> {
     retryBackoff: true,
   });
 
+  await boss.createQueue("data-cleanup", {
+    name: "data-cleanup",
+    retryLimit: 0,
+  });
+
   // Register workers — codat-sync uses includeMetadata to detect final retry
   await boss.work<CodatSyncPayload>("codat-sync", { includeMetadata: true }, codatSyncWorker);
   await boss.work("daily-token-refresh", tokenRefreshWorker);
   await boss.work("monthly-codat-refresh", monthlyRefreshWorker);
   await boss.work<EmailSendPayload>("email-send", emailSendWorker);
+  await boss.work<DataCleanupPayload>("data-cleanup", dataCleanupWorker);
 
   // Scheduled jobs — idempotent, safe to call on every server start
   await boss.schedule("monthly-codat-refresh", "0 2 1 * *", {});
