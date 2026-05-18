@@ -11,6 +11,7 @@ import { codatWebhookRoutes } from "./routes/webhooks/codat.js";
 import { dataQualityRoutes } from "./routes/data-quality.js";
 import { membersRoutes } from "./routes/members.js";
 import { privacyRoutes } from "./routes/privacy.js";
+import { adminRoutes } from "./routes/admin.js";
 import { initWorkers } from "./workers/index.js";
 
 const fastify = Fastify({
@@ -36,6 +37,7 @@ await fastify.register(codatWebhookRoutes);
 await fastify.register(dataQualityRoutes);
 await fastify.register(membersRoutes);
 await fastify.register(privacyRoutes);
+await fastify.register(adminRoutes);
 
 fastify.get("/api/v1/health", async () => {
   return { status: "ok" };
