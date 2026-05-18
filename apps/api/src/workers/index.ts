@@ -4,6 +4,8 @@ import { tokenRefreshWorker } from "./token-refresh.worker.js";
 import { monthlyRefreshWorker } from "./monthly-refresh.worker.js";
 import { emailSendWorker } from "./email-send.worker.js";
 import { dataCleanupWorker } from "./data-cleanup.worker.js";
+import { monthlyReportWorker } from "./monthly-report.worker.js";
+import { reEngagementWorker } from "./re-engagement.worker.js";
 
 export interface CodatSyncPayload {
   organizationId: string;
@@ -55,10 +57,14 @@ export async function initWorkers(): Promise<PgBoss> {
   await boss.work("monthly-codat-refresh", monthlyRefreshWorker);
   await boss.work<EmailSendPayload>("email-send", emailSendWorker);
   await boss.work<DataCleanupPayload>("data-cleanup", dataCleanupWorker);
+  await boss.work("monthly-report", monthlyReportWorker);
+  await boss.work("re-engagement", reEngagementWorker);
 
   // Scheduled jobs — idempotent, safe to call on every server start
   await boss.schedule("monthly-codat-refresh", "0 2 1 * *", {});
   await boss.schedule("daily-token-refresh", "0 3 * * *", {});
+  await boss.schedule("monthly-report", "0 8 1 * *", {});
+  await boss.schedule("re-engagement", "0 9 15 * *", {});
 
   console.info("[pg-boss] workers started");
   return boss;
