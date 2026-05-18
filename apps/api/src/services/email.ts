@@ -35,6 +35,10 @@ export async function sendMagicLinkEmail(
   logger: FastifyBaseLogger,
   payload: MagicLinkEmail,
 ): Promise<void> {
+  if (!process.env.RESEND_API_KEY) {
+    logger.warn({ email: payload.email, magicLinkUrl: payload.url }, "[email] DEV MODE — magic link (copy this URL to sign in)");
+    return;
+  }
   await sendEmail(logger, {
     to: payload.email,
     subject: "Your BoringBusinessIntel sign-in link",

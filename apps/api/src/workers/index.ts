@@ -51,6 +51,12 @@ export async function initWorkers(): Promise<PgBoss> {
     retryLimit: 0,
   });
 
+  // Queues for scheduled jobs — must exist before boss.schedule() is called
+  await boss.createQueue("daily-token-refresh");
+  await boss.createQueue("monthly-codat-refresh");
+  await boss.createQueue("monthly-report");
+  await boss.createQueue("re-engagement");
+
   // Register workers — codat-sync uses includeMetadata to detect final retry
   await boss.work<CodatSyncPayload>("codat-sync", { includeMetadata: true }, codatSyncWorker);
   await boss.work("daily-token-refresh", tokenRefreshWorker);
